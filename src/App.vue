@@ -19,6 +19,7 @@ const isDarkMode = ref(false)
 
 // 数据加载状态
 const isLoading = ref(true)
+const loadingStatus = ref('正在从 GitHub 获取插件列表...')
 const showPlugins = ref(false)
 const plugins = ref([])
 const error = ref(null)
@@ -26,13 +27,17 @@ const error = ref(null)
 // 获取插件数据
 const fetchPlugins = async () => {
   try {
+    loadingStatus.value = '正在从 GitHub 获取插件列表...'
     const response = await fetch('https://raw.githubusercontent.com/MaiM-with-u/plugin-repo/main/plugin_details.json')
     if (!response.ok) {
       throw new Error('获取插件数据失败')
     }
+    
+    loadingStatus.value = '正在解析插件数据...'
     const data = await response.json()
     console.log('获取到的插件数据:', data)
     
+    loadingStatus.value = '正在处理插件信息...'
     // 转换数据格式
     plugins.value = data.map((item, index) => {
       const manifest = item.manifest
@@ -70,6 +75,8 @@ const fetchPlugins = async () => {
         icon: getIconByCategory(manifest.categories?.[0] || 'other')
       }
     })
+    
+    loadingStatus.value = '加载完成！'
   } catch (err) {
     error.value = err.message
     console.error('获取插件数据失败:', err)
@@ -159,12 +166,16 @@ const goToPage = (page) => {
 const showPluginDetails = (plugin) => {
   selectedPlugin.value = plugin
   showModal.value = true
+  // 锁定背景滚动
+  document.body.style.overflow = 'hidden'
 }
 
 // 关闭弹窗
 const closeModal = () => {
   showModal.value = false
   selectedPlugin.value = null
+  // 恢复背景滚动
+  document.body.style.overflow = ''
 }
 
 // 切换视图模式
@@ -236,6 +247,13 @@ onMounted(async () => {
   // 触发动画
   await nextTick()
   showPlugins.value = true
+  
+  // 添加键盘事件监听
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && showModal.value) {
+      closeModal()
+    }
+  })
 })
 </script>
 
@@ -300,12 +318,12 @@ onMounted(async () => {
     
     <!-- 插件列表 -->
     <div :class="[
-      'pt-32 pb-32 transition-colors duration-300',
+      'pt-32 pb-8 transition-colors duration-300',
       isDarkMode 
         ? 'bg-gradient-to-b from-gray-800 to-gray-900' 
         : 'bg-gradient-to-b from-gray-50 to-white'
     ]"
-    style="min-height: 100vh;"
+    style="min-height: calc(100vh - 160px);"
     >
       <div class="container mx-auto px-4">
         <div class="text-center mb-16">
@@ -314,9 +332,33 @@ onMounted(async () => {
             isDarkMode ? 'text-white' : 'text-gray-800'
           ]">全部插件</h2>
           <p :class="[
-            'text-xl mb-8 transition-colors',
+            'text-xl mb-4 transition-colors',
             isDarkMode ? 'text-gray-300' : 'text-gray-600'
           ]">发现更多优秀插件</p>
+          
+          <!-- 插件总数显示 -->
+          <div class="mb-8">
+            <div :class="[
+              'inline-flex items-center gap-2 px-4 py-2 rounded-full border transition-colors',
+              isDarkMode 
+                ? 'bg-gray-800 border-gray-600 text-gray-300' 
+                : 'bg-white border-gray-200 text-gray-600'
+            ]">
+              <Icon icon="mdi:package-variant" class="text-lg" />
+              <span class="font-medium">
+                共找到 <span :class="[
+                  'font-bold text-lg',
+                  isDarkMode ? 'text-blue-400' : 'text-blue-600'
+                ]">{{ filteredPlugins.length }}</span> 个插件
+              </span>
+              <span v-if="searchQuery.trim() !== ''" :class="[
+                'text-sm px-2 py-1 rounded-md',
+                isDarkMode ? 'bg-blue-900 text-blue-200' : 'bg-blue-50 text-blue-600'
+              ]">
+                (已筛选)
+              </span>
+            </div>
+          </div>
           
           <!-- 搜索框 -->
           <div class="max-w-md mx-auto mb-8">
@@ -384,9 +426,9 @@ onMounted(async () => {
           <div class="flex flex-col items-center">
             <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mb-4"></div>
             <p :class="[
-              'transition-colors',
+              'transition-colors text-lg font-medium',
               isDarkMode ? 'text-gray-300' : 'text-gray-600'
-            ]">正在从Github获取插件列表...</p>
+            ]">{{ loadingStatus }}</p>
           </div>
         </div>
         
@@ -589,7 +631,7 @@ onMounted(async () => {
         </div>
 
         <!-- 分页 -->
-        <div class="fixed bottom-4 left-1/2 transform -translate-x-1/2 z-30" v-if="totalPages > 1">
+        <div class="flex justify-center mt-12 pb-8" v-if="totalPages > 1">
           <div class="flex gap-2">
             <button 
               :class="[
@@ -894,13 +936,24 @@ onMounted(async () => {
   </Transition>
 
     <!-- 底部 -->
-    <footer class="fixed bottom-0 left-0 right-0 bg-gradient-to-r from-gray-900 to-gray-800 text-white py-6 z-20">
+    <footer :class="[
+      'text-white py-8 transition-colors',
+      isDarkMode ? 'bg-gray-900' : 'bg-gray-800'
+    ]">
       <div class="container mx-auto px-4 text-center">
-        <div class="flex items-center justify-center gap-3 mb-2">
+        <div class="flex items-center justify-center gap-3 mb-4">
           <Icon icon="mdi:puzzle" class="text-2xl" style="color: #4d9fff" />
           <span class="text-lg font-bold">插件仓库</span>
         </div>
-        <p class="text-gray-400 text-sm">为您的 MaiBot 提供强大的插件支持</p>
+        <p class="text-gray-400 text-sm mb-4">为您的 MaiBot 提供强大的插件支持</p>
+        <div class="flex items-center justify-center gap-6 text-sm text-gray-400">
+          <a href="https://github.com/MaiM-with-u/plugin-repo" target="_blank" class="hover:text-white transition-colors flex items-center gap-1">
+            <Icon icon="mdi:github" />
+            GitHub
+          </a>
+          <span>|</span>
+          <span>© 2025 MaiBot Plugin Repository</span>
+        </div>
       </div>
     </footer>
   </div>

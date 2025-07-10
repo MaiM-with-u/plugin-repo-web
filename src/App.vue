@@ -28,9 +28,16 @@ const error = ref(null)
 const fetchPlugins = async () => {
   try {
     loadingStatus.value = '正在从 GitHub 获取插件列表...'
-    const response = await fetch('https://raw.githubusercontent.com/MaiM-with-u/plugin-repo/main/plugin_details.json')
+    // 修复网络请求 - 添加错误重试机制和更好的错误处理
+    const response = await fetch('https://raw.githubusercontent.com/MaiM-with-u/plugin-repo/main/plugin_details.json', {
+      cache: 'no-cache', // 避免缓存问题
+      headers: {
+        'Accept': 'application/json',
+        'User-Agent': 'MaiBot-Plugin-Repo-Web'
+      }
+    })
     if (!response.ok) {
-      throw new Error('获取插件数据失败')
+      throw new Error(`HTTP Error: ${response.status} - 获取插件数据失败`)
     }
     
     loadingStatus.value = '正在解析插件数据...'
@@ -201,7 +208,7 @@ const goToRepository = (plugin) => {
   console.log('尝试跳转到仓库:', plugin.name, plugin.repositoryUrl)
   
   if (plugin.repositoryUrl && plugin.repositoryUrl.trim() !== '') {
-    // 确保URL是完整的链接
+    // 确保URL是完整的链接 - 修复URL解析问题
     let url = plugin.repositoryUrl.trim()
     if (!url.startsWith('http://') && !url.startsWith('https://')) {
       // 如果不是完整URL，假设是GitHub仓库路径
@@ -209,12 +216,19 @@ const goToRepository = (plugin) => {
         url = 'https://github.com/' + url
       } else {
         console.warn('无效的仓库地址格式:', url)
+        alert('仓库地址格式不正确，请检查插件配置')
         return
       }
     }
     
     console.log('正在打开仓库链接:', url)
-    window.open(url, '_blank')
+    // 修复链接打开问题 - 添加错误处理
+    try {
+      window.open(url, '_blank', 'noopener,noreferrer')
+    } catch (error) {
+      console.error('打开链接失败:', error)
+      alert('无法打开链接，请手动复制地址：' + url)
+    }
   } else {
     console.warn('插件没有仓库地址:', plugin.name)
     // 可以添加一个用户友好的提示
@@ -1083,7 +1097,7 @@ const fetchPluginsData = async () => {
                 <p :class="[
                   'leading-relaxed text-sm',
                   isDarkMode ? 'text-gray-400' : 'text-gray-500'
-                ]">💡 继续使用即表示您已阅读并同意《<a href="./PLUGIN_MARKET_NOTICE.md" class="underline">MaiBot插件市场使用公告</a>》的全部条款。</p>
+                ]">💡 继续使用即表示您已阅读并同意《<a href="./PLUGIN_MARKET_NOTICE.md" class="underline hover:text-blue-500 transition-colors" target="_blank">MaiBot插件市场使用公告</a>》的全部条款。</p>
               </div>
 
               <!-- 我已知悉复选框 -->

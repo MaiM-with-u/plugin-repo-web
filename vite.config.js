@@ -13,11 +13,22 @@ export default defineConfig({
       '@': fileURLToPath(new URL('./src', import.meta.url))
     },
   },
-  // 配置为 GitHub Pages 部署
-  base: process.env.NODE_ENV === 'production' ? '/plugin-repo/' : '/',
+  // 修复路径问题 - 根据部署环境设置正确的 base 路径
+  // 如果是 GitHub Pages 部署，使用 /plugin-repo-web/；否则使用根路径
+  base: process.env.NODE_ENV === 'production' ? '/plugin-repo-web/' : '/',
   build: {
-    outDir: '../plugin-repo/docs',
+    // 修复构建输出目录 - 输出到当前项目的 dist 目录
+    outDir: 'dist',
     emptyOutDir: true,
-    assetsDir: 'assets'
+    assetsDir: 'assets',
+    // 确保资源文件使用相对路径
+    rollupOptions: {
+      output: {
+        // 修复 JavaScript 和 CSS 文件的命名，避免特殊字符导致的加载问题
+        chunkFileNames: 'assets/js/[name]-[hash].js',
+        entryFileNames: 'assets/js/[name]-[hash].js',
+        assetFileNames: 'assets/[ext]/[name]-[hash].[ext]'
+      }
+    }
   }
 })

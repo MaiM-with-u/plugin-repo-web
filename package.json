@@ -8,7 +8,8 @@
     "build": "vite build",
     "preview": "vite preview",
     "build:github": "NODE_ENV=production vite build",
-    "deploy": "npm run build:github && cd ../plugin-repo && git add docs && git commit -m \"Update website\" && git push"
+    "deploy": "npm run build:github && cp -r dist/* ../plugin-repo/docs/",
+    "deploy:win": "npm run build:github && xcopy dist\\* ..\\plugin-repo\\docs\\ /E /H /Y"
   },
   "dependencies": {
     "daisyui": "^5.0.46",

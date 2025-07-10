@@ -222,11 +222,43 @@ const goToRepository = (plugin) => {
   }
 }
 
-// 切换主题模式
+// 切换主题
 const toggleTheme = () => {
   isDarkMode.value = !isDarkMode.value
   // 保存主题设置到本地存储
   localStorage.setItem('darkMode', isDarkMode.value.toString())
+}
+
+// 注意事项弹窗状态
+const showNotice = ref(false) // 初始化为 false，在 onMounted 中根据设置决定是否显示
+const canCloseNotice = ref(false)
+const dontShowNoticeAgain = ref(false)
+
+// 关闭弹窗
+const closeNotice = () => {
+  if (canCloseNotice.value) {
+    showNotice.value = false
+    if (dontShowNoticeAgain.value) {
+      localStorage.setItem('dontShowNoticeAgain', 'true')
+      console.log('设置不再显示弹窗') // 调试日志
+    }
+  }
+}
+
+// 调试用：重置弹窗设置
+const resetNoticeSettings = () => {
+  localStorage.removeItem('dontShowNoticeAgain')
+  showNotice.value = true
+  canCloseNotice.value = false
+  dontShowNoticeAgain.value = false
+  setTimeout(() => {
+    canCloseNotice.value = true
+  }, 3000)
+}
+
+// 全局暴露重置方法用于调试
+if (typeof window !== 'undefined') {
+  window.resetNoticeSettings = resetNoticeSettings
 }
 
 // 初始化加载
@@ -237,24 +269,54 @@ onMounted(async () => {
     isDarkMode.value = savedTheme === 'true'
   }
   
-  // 获取插件数据
-  await fetchPlugins()
-  
-  // 模拟加载延迟
-  await new Promise(resolve => setTimeout(resolve, 800))
-  isLoading.value = false
-  
-  // 触发动画
-  await nextTick()
-  showPlugins.value = true
+  // 检查注意事项弹窗设置，优先处理弹窗逻辑
+  const savedPreference = localStorage.getItem('dontShowNoticeAgain')
+  console.log('弹窗设置检查:', savedPreference) // 调试日志
+  if (savedPreference !== 'true') {
+    // 如果用户没有选择不再显示，则显示弹窗
+    console.log('显示注意事项弹窗') // 调试日志
+    showNotice.value = true
+    // 3秒后允许关闭注意事项弹窗
+    setTimeout(() => {
+      canCloseNotice.value = true
+      console.log('允许关闭弹窗') // 调试日志
+    }, 3000)
+  } else {
+    console.log('用户选择不再显示弹窗') // 调试日志
+  }
   
   // 添加键盘事件监听
   document.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape' && showModal.value) {
-      closeModal()
+    if (e.key === 'Escape') {
+      if (showModal.value) {
+        closeModal()
+      } else if (showNotice.value && canCloseNotice.value) {
+        closeNotice()
+      }
     }
   })
+  
+  // 异步获取插件数据，不影响弹窗显示
+  fetchPluginsData()
 })
+
+// 分离插件数据获取逻辑
+const fetchPluginsData = async () => {
+  try {
+    await fetchPlugins()
+    
+    // 模拟加载延迟
+    await new Promise(resolve => setTimeout(resolve, 800))
+    isLoading.value = false
+    
+    // 触发动画
+    await nextTick()
+    showPlugins.value = true
+  } catch (err) {
+    // 错误处理已经在 fetchPlugins 中完成
+    isLoading.value = false
+  }
+}
 </script>
 
 <template>
@@ -693,16 +755,6 @@ onMounted(async () => {
             'relative rounded-3xl shadow-2xl max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto transition-colors',
             isDarkMode ? 'bg-gray-800' : 'bg-white'
           ]">
-          <!-- 关闭按钮 -->
-          <button 
-            @click="closeModal"
-            :class="[
-              'absolute top-4 right-4 w-8 h-8 rounded-full flex items-center justify-center transition-colors z-10',
-              isDarkMode ? 'bg-gray-700 hover:bg-gray-600 text-gray-300' : 'bg-gray-100 hover:bg-gray-200 text-gray-600'
-            ]"
-          >
-            <Icon icon="mdi:close" />
-          </button>
           
           <div v-if="selectedPlugin" class="p-8">
           <!-- 插件头部信息 -->
@@ -922,13 +974,151 @@ onMounted(async () => {
             <button 
               @click="closeModal"
               :class="[
-                'px-6 py-3 rounded-xl font-medium transition-colors',
-                isDarkMode ? 'bg-gray-700 text-gray-300 hover:bg-gray-600' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                'flex-1 px-6 py-3 rounded-xl font-medium hover:shadow-lg transform hover:scale-105 transition-all duration-200',
+                'bg-gradient-to-r from-blue-500 to-indigo-600 text-white cursor-pointer'
               ]"
+              style="background: linear-gradient(135deg, #4d9fff 0%, #6366f1 100%)"
             >
-              返回
+              关闭
             </button>
           </div>
+          </div>
+        </div>
+      </Transition>
+    </div>
+  </Transition>
+
+    <!-- 注意事项弹窗 -->
+    <Transition name="modal-backdrop">
+      <div v-if="showNotice" class="fixed inset-0 z-[9999] flex items-center justify-center"
+           style="background-color: rgba(0, 0, 0, 0.5);">
+        <!-- 毛玻璃遮罩 -->
+        <div 
+          class="fixed inset-0 backdrop-blur-sm"
+          @click="closeNotice"
+        ></div>
+
+        <!-- 弹窗内容 -->
+        <Transition name="modal-content" appear>
+          <div v-if="showNotice" :class="[
+            'relative rounded-3xl shadow-2xl max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto transition-colors',
+            isDarkMode ? 'bg-gray-800' : 'bg-white'
+          ]">
+
+          <div class="p-8">
+            <!-- 标题 -->
+            <h2 :class="[
+              'text-3xl font-bold mb-6',
+              isDarkMode ? 'text-white' : 'text-gray-800'
+            ]">⚠️ 插件市场重要提示</h2>
+
+            <!-- 内容 -->
+            <div class="space-y-6">
+              <div>
+                <h3 :class="[
+                  'text-xl font-semibold mb-3 flex items-center gap-2',
+                  isDarkMode ? 'text-white' : 'text-gray-800'
+                ]">
+                  <Icon icon="mdi:lock" /> 安全须知
+                </h3>
+                <p :class="[
+                  'leading-relaxed text-base',
+                  isDarkMode ? 'text-gray-300' : 'text-gray-600'
+                ]">所有插件均由第三方开发者独立开发，<strong>MaiBot项目团队不承担任何责任</strong>。</p>
+              </div>
+
+              <div>
+                <h3 :class="[
+                  'text-xl font-semibold mb-3 flex items-center gap-2',
+                  isDarkMode ? 'text-white' : 'text-gray-800'
+                ]">
+                  <Icon icon="mdi:clipboard-text" /> 使用前必读
+                </h3>
+                <ul :class="[
+                  'list-disc pl-6 space-y-2',
+                  isDarkMode ? 'text-gray-300' : 'text-gray-600'
+                ]">
+                  <li>⚠️ 第三方插件可能存在安全风险：恶意代码、隐私泄露、系统崩溃</li>
+                  <li>⚠️ 插件质量无法保证：功能缺陷、兼容性问题、法律风险</li>
+                  <li>⚠️ 使用风险完全自担：MaiBot团队不提供技术支持或售后服务</li>
+                </ul>
+              </div>
+
+              <div>
+                <h3 :class="[
+                  'text-xl font-semibold mb-3 flex items-center gap-2',
+                  isDarkMode ? 'text-white' : 'text-gray-800'
+                ]">
+                  <Icon icon="mdi:shield-check" /> 安全建议
+                </h3>
+                <ul :class="[
+                  'list-disc pl-6 space-y-2',
+                  isDarkMode ? 'text-gray-300' : 'text-gray-600'
+                ]">
+                  <li>🔍 仔细评估插件来源和开发者信誉</li>
+                  <li>📖 详细阅读插件说明和权限要求</li>
+                  <li>🧪 测试环境中先试用再正式使用</li>
+                  <li>🚫 立即停用发现异常行为的插件</li>
+                </ul>
+              </div>
+
+              <div>
+                <h3 :class="[
+                  'text-xl font-semibold mb-3 flex items-center gap-2',
+                  isDarkMode ? 'text-white' : 'text-gray-800'
+                ]">
+                  <Icon icon="mdi:phone" /> 问题处理
+                </h3>
+                <ul :class="[
+                  'list-disc pl-6 space-y-2',
+                  isDarkMode ? 'text-gray-300' : 'text-gray-600'
+                ]">
+                  <li>插件技术问题：请直接联系插件开发者</li>
+                  <li>违规举报：通过官方渠道举报恶意插件</li>
+                  <li>平台问题：联系MaiBot官方支持</li>
+                </ul>
+              </div>
+
+              <div>
+                <p :class="[
+                  'leading-relaxed text-sm',
+                  isDarkMode ? 'text-gray-400' : 'text-gray-500'
+                ]">💡 继续使用即表示您已阅读并同意《<a href="./PLUGIN_MARKET_NOTICE.md" class="underline">MaiBot插件市场使用公告</a>》的全部条款。</p>
+              </div>
+
+              <!-- 我已知悉复选框 -->
+              <div class="flex items-center gap-2 mt-6">
+                <input 
+                  type="checkbox" 
+                  v-model="dontShowNoticeAgain" 
+                  :class="[
+                    'w-5 h-5 rounded transition-colors',
+                    isDarkMode ? 'bg-gray-700 border-gray-600 text-gray-300' : 'bg-gray-100 border-gray-200 text-gray-600'
+                  ]"
+                />
+                <label :class="[
+                  'text-sm',
+                  isDarkMode ? 'text-gray-300' : 'text-gray-600'
+                ]">我已知悉，下次不再提示</label>
+              </div>
+              
+              <!-- 关闭按钮 -->
+              <div class="flex justify-end mt-8">
+                <button 
+                  @click="closeNotice"
+                  :disabled="!canCloseNotice"
+                  :class="[
+                    'px-8 py-3 rounded-xl font-medium hover:shadow-lg transform hover:scale-105 transition-all duration-200',
+                    canCloseNotice
+                      ? 'bg-gradient-to-r from-blue-500 to-indigo-600 text-white cursor-pointer'
+                      : 'bg-gray-400 text-gray-200 cursor-not-allowed'
+                  ]"
+                  :style="canCloseNotice ? 'background: linear-gradient(135deg, #4d9fff 0%, #6366f1 100%)' : ''"
+                >
+                  关闭
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       </Transition>

@@ -29,7 +29,12 @@ const fetchPlugins = async () => {
   try {
     loadingStatus.value = '正在从 GitHub API 获取插件列表...'
     // 使用GitHub API获取文件内容，避免跨域问题
-    const response = await fetch('https://api.github.com/repos/MaiM-with-u/plugin-repo/contents/plugin_details.json')
+    const response = await fetch('https://api.github.com/repos/MaiM-with-u/plugin-repo/contents/plugin_details.json', {
+      method: 'GET',
+      headers: {
+        'Accept': 'application/json', // 确保头部是简单头部
+      },
+    })
     if (!response.ok) {
       throw new Error(`HTTP Error: ${response.status} - 获取插件数据失败`)
     }

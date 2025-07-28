@@ -32,8 +32,7 @@ const fetchPlugins = async () => {
     const response = await fetch('https://raw.githubusercontent.com/MaiM-with-u/plugin-repo/main/plugin_details.json', {
       cache: 'no-cache', // 避免缓存问题
       headers: {
-        'Accept': 'application/json',
-        'User-Agent': 'MaiBot-Plugin-Repo-Web'
+        'Accept': 'application/json'
       }
     })
     if (!response.ok) {

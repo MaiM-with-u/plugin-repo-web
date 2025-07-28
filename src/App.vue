@@ -28,13 +28,8 @@ const error = ref(null)
 const fetchPlugins = async () => {
   try {
     loadingStatus.value = '正在从 GitHub 获取插件列表...'
-    // 修复网络请求 - 添加错误重试机制和更好的错误处理
-    const response = await fetch('https://raw.githubusercontent.com/MaiM-with-u/plugin-repo/main/plugin_details.json', {
-      cache: 'no-cache', // 避免缓存问题
-      headers: {
-        'Accept': 'application/json'
-      }
-    })
+    // 修复网络请求 - Firefox跨域优化，移除所有可能导致预检请求的配置
+    const response = await fetch('https://raw.githubusercontent.com/MaiM-with-u/plugin-repo/main/plugin_details.json')
     if (!response.ok) {
       throw new Error(`HTTP Error: ${response.status} - 获取插件数据失败`)
     }

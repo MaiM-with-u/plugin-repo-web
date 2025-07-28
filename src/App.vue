@@ -27,15 +27,19 @@ const error = ref(null)
 // 获取插件数据
 const fetchPlugins = async () => {
   try {
-    loadingStatus.value = '正在从 GitHub 获取插件列表...'
-    // 修复网络请求 - Firefox跨域优化，移除所有可能导致预检请求的配置
-    const response = await fetch('https://raw.githubusercontent.com/MaiM-with-u/plugin-repo/main/plugin_details.json')
+    loadingStatus.value = '正在从 GitHub API 获取插件列表...'
+    // 使用GitHub API获取文件内容，避免跨域问题
+    const response = await fetch('https://api.github.com/repos/MaiM-with-u/plugin-repo/contents/plugin_details.json')
     if (!response.ok) {
       throw new Error(`HTTP Error: ${response.status} - 获取插件数据失败`)
     }
     
     loadingStatus.value = '正在解析插件数据...'
-    const data = await response.json()
+    const apiResponse = await response.json()
+    
+    // GitHub API返回的是base64编码的内容，需要解码
+    const decodedContent = atob(apiResponse.content)
+    const data = JSON.parse(decodedContent)
     console.log('获取到的插件数据:', data)
     
     loadingStatus.value = '正在处理插件信息...'

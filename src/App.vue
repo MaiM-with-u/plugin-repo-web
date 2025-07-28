@@ -42,8 +42,8 @@ const fetchPlugins = async () => {
     loadingStatus.value = '正在解析插件数据...'
     const apiResponse = await response.json()
     
-    // GitHub API返回的是base64编码的内容，需要解码
-    const decodedContent = atob(apiResponse.content)
+    // GitHub API返回的是base64编码的内容，需要正确解码UTF-8
+    const decodedContent = decodeURIComponent(escape(atob(apiResponse.content)))
     const data = JSON.parse(decodedContent)
     console.log('获取到的插件数据:', data)
     
